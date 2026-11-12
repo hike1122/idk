@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
     registerPlugin(MediaNow.class);
+    registerPlugin(OcrNow.class);
     super.onCreate(savedInstanceState);
   }
 }
@@ -160,3 +161,58 @@ public class MediaNow extends Plugin {
   }
 }
 `);
+fs.writeFileSync(d+'OcrNow.java',`package com.eu.jejumdieta;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
+import com.getcapacitor.JSArray;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+
+@CapacitorPlugin(name = "OcrNow")
+public class OcrNow extends Plugin {
+  @PluginMethod
+  public void read(final PluginCall call) {
+    String s = call.getString("b");
+    if (s == null) {
+      call.reject("sem imagem");
+      return;
+    }
+    try {
+      byte[] b = Base64.decode(s, Base64.DEFAULT);
+      Bitmap bmp = BitmapFactory.decodeByteArray(b, 0, b.length);
+      if (bmp == null) {
+        call.reject("imagem invalida");
+        return;
+      }
+      TextRecognizer rec = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+      rec
+        .process(InputImage.fromBitmap(bmp, 0))
+        .addOnSuccessListener(t -> {
+          JSArray ls = new JSArray();
+          for (Text.TextBlock bl : t.getTextBlocks()) {
+            for (Text.Line ln : bl.getLines()) ls.put(ln.getText());
+          }
+          JSObject o = new JSObject();
+          o.put("lines", ls);
+          call.resolve(o);
+        })
+        .addOnFailureListener(e -> call.reject(String.valueOf(e.getMessage())));
+    } catch (Exception e) {
+      call.reject(String.valueOf(e.getMessage()));
+    }
+  }
+}
+`);
+const g='android/app/build.gradle';let gb=fs.readFileSync(g,'utf8');
+if(!gb.includes('mlkit:text-recognition'))gb=gb.replace(/dependencies\s*\{/,"dependencies {\n    implementation 'com.google.mlkit:text-recognition:16.0.1'");
+fs.writeFileSync(g,gb);
