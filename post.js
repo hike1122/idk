@@ -161,10 +161,14 @@ public class MediaNow extends Plugin {
   }
 }
 `);
+// OcrNow: read() devolve linhas, palavras com caixa e ângulo (para montar a tabela do rótulo);
+// labels() reconhece o tipo de comida na foto (ML Kit, no aparelho)
 fs.writeFileSync(d+'OcrNow.java',`package com.eu.jejumdieta;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.util.Base64;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -173,6 +177,10 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.label.ImageLabel;
+import com.google.mlkit.vision.label.ImageLabeler;
+import com.google.mlkit.vision.label.ImageLabeling;
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
@@ -180,33 +188,95 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 @CapacitorPlugin(name = "OcrNow")
 public class OcrNow extends Plugin {
-  @PluginMethod
-  public void read(final PluginCall call) {
+  private Bitmap decode(PluginCall call) {
     String s = call.getString("b");
     if (s == null) {
       call.reject("sem imagem");
-      return;
+      return null;
     }
     try {
       byte[] b = Base64.decode(s, Base64.DEFAULT);
       Bitmap bmp = BitmapFactory.decodeByteArray(b, 0, b.length);
-      if (bmp == null) {
-        call.reject("imagem invalida");
-        return;
-      }
-      TextRecognizer rec = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+      if (bmp == null) call.reject("imagem invalida");
+      return bmp;
+    } catch (Exception e) {
+      call.reject(String.valueOf(e.getMessage()));
+      return null;
+    }
+  }
+
+  @PluginMethod
+  public void read(final PluginCall call) {
+    Bitmap bmp = decode(call);
+    if (bmp == null) return;
+    int rot = call.getInt("rot", 0);
+    try {
+      final TextRecognizer rec = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
       rec
-        .process(InputImage.fromBitmap(bmp, 0))
+        .process(InputImage.fromBitmap(bmp, rot))
         .addOnSuccessListener(t -> {
           JSArray ls = new JSArray();
+          JSArray ws = new JSArray();
           for (Text.TextBlock bl : t.getTextBlocks()) {
-            for (Text.Line ln : bl.getLines()) ls.put(ln.getText());
+            for (Text.Line ln : bl.getLines()) {
+              ls.put(ln.getText());
+              double ang = 0;
+              Point[] cp = ln.getCornerPoints();
+              if (cp != null && cp.length == 4) ang = Math.toDegrees(Math.atan2(cp[1].y - cp[0].y, cp[1].x - cp[0].x));
+              for (Text.Element el : ln.getElements()) {
+                Rect r = el.getBoundingBox();
+                if (r == null) continue;
+                JSObject w = new JSObject();
+                w.put("t", el.getText());
+                w.put("x0", r.left);
+                w.put("y0", r.top);
+                w.put("x1", r.right);
+                w.put("y1", r.bottom);
+                w.put("a", ang);
+                ws.put(w);
+              }
+            }
           }
           JSObject o = new JSObject();
           o.put("lines", ls);
+          o.put("w", ws);
           call.resolve(o);
+          rec.close();
         })
-        .addOnFailureListener(e -> call.reject(String.valueOf(e.getMessage())));
+        .addOnFailureListener(e -> {
+          call.reject(String.valueOf(e.getMessage()));
+          rec.close();
+        });
+    } catch (Exception e) {
+      call.reject(String.valueOf(e.getMessage()));
+    }
+  }
+
+  @PluginMethod
+  public void labels(final PluginCall call) {
+    Bitmap bmp = decode(call);
+    if (bmp == null) return;
+    try {
+      final ImageLabeler lab = ImageLabeling.getClient(new ImageLabelerOptions.Builder().setConfidenceThreshold(0.4f).build());
+      lab
+        .process(InputImage.fromBitmap(bmp, 0))
+        .addOnSuccessListener(list -> {
+          JSArray a = new JSArray();
+          for (ImageLabel l : list) {
+            JSObject o = new JSObject();
+            o.put("t", l.getText());
+            o.put("c", (double) l.getConfidence());
+            a.put(o);
+          }
+          JSObject r = new JSObject();
+          r.put("labels", a);
+          call.resolve(r);
+          lab.close();
+        })
+        .addOnFailureListener(e -> {
+          call.reject(String.valueOf(e.getMessage()));
+          lab.close();
+        });
     } catch (Exception e) {
       call.reject(String.valueOf(e.getMessage()));
     }
@@ -215,4 +285,5 @@ public class OcrNow extends Plugin {
 `);
 const g='android/app/build.gradle';let gb=fs.readFileSync(g,'utf8');
 if(!gb.includes('mlkit:text-recognition'))gb=gb.replace(/dependencies\s*\{/,"dependencies {\n    implementation 'com.google.mlkit:text-recognition:16.0.1'");
+if(!gb.includes('mlkit:image-labeling'))gb=gb.replace(/dependencies\s*\{/,"dependencies {\n    implementation 'com.google.mlkit:image-labeling:17.0.9'");
 fs.writeFileSync(g,gb);

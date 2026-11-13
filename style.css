@@ -46,3 +46,7 @@ details summary{cursor:pointer;list-style:none}
 .nh{border-top:3px solid var(--t);font-size:11px;color:var(--m)}
 .rbar{position:sticky;top:calc(max(env(safe-area-inset-top),28px) - 12px);z-index:4;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--ln);margin-bottom:6px}
 .rbar button{padding:6px 9px;font-size:13px}.rbar .row{flex-wrap:wrap;justify-content:flex-end}
+.two{display:flex;gap:8px}.two>button{flex:1}
+.miss input{border-color:var(--y)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chips button{padding:6px 11px;font-size:13px;border-radius:20px}
+.pv{width:100%;max-height:180px;object-fit:contain;border-radius:12px}

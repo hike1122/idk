@@ -216,12 +216,12 @@ const useRoom=g=>{const o=F.gr;F.gr=g;$('#fgr').value=g;fill(o);syncU()};
 const byK=()=>{const kc=+$('#fkc').value,k100=F.gr>0?F.v[0]/F.gr*100:0;if(!kc||!k100)return toast('Escolha um alimento e digite as kcal');const o=F.gr;F.gr=+(kc/k100*100).toFixed(0);$('#fgr').value=F.gr;fill(o);syncU()};
 // ---- internet, código de barras, rótulo
 const r1=x=>+(+x||0).toFixed(1);
-const off=p=>{const n=p.nutriments||{},g=k=>+n[k+'_100g']||0,m=k=>g(k)*1000,x={},put=(k,v)=>{if(v>0)x[k]=+(+v).toFixed(2)};put('sug',g('sugars'));put('sat',g('saturated-fat'));put('trans',g('trans-fat'));put('chol',m('cholesterol'));put('mg',m('magnesium'));put('zn',m('zinc'));put('p',m('phosphorus'));put('vA',g('vitamin-a')*1e6);put('vD',g('vitamin-d')*1e6);put('vE',m('vitamin-e'));put('vK',g('vitamin-k')*1e6);put('vB12',g('vitamin-b12')*1e6);put('fol',g('vitamin-b9')*1e6);return[(p.product_name||'Produto')+(p.brands?' ('+p.brands.split(',')[0]+')':''),Math.round(+n['energy-kcal_100g']||g('energy')/4.184),r1(g('proteins')),r1(g('carbohydrates')),r1(g('fat')),r1(g('fiber')),Math.round(m('sodium')),Math.round(m('calcium')),r1(m('iron')),Math.round(m('potassium')),r1(m('vitamin-c')),+p.serving_quantity||0,x,p.ingredients_text_pt||p.ingredients_text||'']};
+// (off: ver scan v2)
 async function web(q,c){if(!q)return toast('Digite o nome do alimento na busca');WC=c;WM=F&&F.meal;toast('Pesquisando…');try{const r=await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=15&lc=pt&fields=product_name,brands,nutriments,serving_quantity,ingredients_text,ingredients_text_pt&search_terms='+encodeURIComponent(q)),j=await r.json();WR=(j.products||[]).filter(p=>p.product_name&&p.nutriments).map(off).filter(x=>x[1]>0);
 sheet(`<h2>Resultados da internet</h2>${WR.map((x,i)=>`<div class="row sp" style="margin:10px 0" onclick="wpk(${i})"><span>${esc(x[0])}<br><small>P${x[2]} C${x[3]} G${x[4]} · por 100 g</small></span><b>${x[1]}</b></div>`).join('')||'<small>Nada encontrado.</small>'}<button style="width:100%;margin-top:10px" onclick="gg('${encodeURIComponent(q)}')">🌐 Abrir no Google</button>`)}catch(e){toast('Sem internet ou erro na busca')}}
 const gg=q=>{location.href='https://www.google.com/search?q='+encodeURIComponent('tabela nutricional ')+q};
 function wpk(i){const r=WR[i];let k=S.lib.findIndex(x=>x[0]==r[0]);if(k<0){S.lib.push(r);k=S.lib.length-1;save()}closeS();if(WC){fSheet(WM);pk(DB.length+k)}else{toast('Salvo em Meus alimentos');render()}}
-async function scanBar(){const B=C().BarcodeScanner;if(!B)return toast('Disponível só no app instalado');try{const a=await B.isGoogleBarcodeScannerModuleAvailable();if(!a.available){await B.installGoogleBarcodeScannerModule();return toast('Instalando o leitor do Google… tente de novo em 1 minuto')}const r=await B.scan(),c=r.barcodes[0]&&r.barcodes[0].rawValue;if(!c)return;toast('Buscando produto…');const j=await(await fetch('https://world.openfoodfacts.org/api/v2/product/'+c+'.json?fields=product_name,brands,nutriments,serving_quantity,ingredients_text,ingredients_text_pt')).json();if(j.status!=1)return toast('Produto não encontrado. Use a foto do rótulo.');WR=[off(j.product)];WC=1;WM=F.meal;wpk(0)}catch(e){toast('Não consegui ler o código')}}
+// (scanBar: ver scan v2)
 async function snap(w){try{const P=C().Camera;if(P)return(await P.getPhoto({quality:85,width:w||1200,resultType:'dataUrl',source:'CAMERA',saveToGallery:false,correctOrientation:true})).dataUrl;return await new Promise(r=>{const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';i.onchange=()=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(i.files[0])};i.click()})}catch(e){return null}}
 // ---- refeições: limite por refeição
 const dist=()=>{const W={'Café da manhã':25,'Almoço':35,'Lanche':10,'Jantar':25,'Ceia':5},a=S.meals.filter(x=>x.on),s=a.reduce((n,x)=>n+(W[x.n]||15),0);a.forEach(x=>x.max=Math.round(goalK()*(W[x.n]||15)/s/10)*10);save();render();toast('Limites definidos. Ajuste como quiser.')};
@@ -296,17 +296,17 @@ return dnav()+`<div class=card><div class=row><div class=ring style="--p:${pct(t
 `<div class=row><button style="flex:1;text-align:left" onclick="go('jejum')">${f.inW?'🟢 Janela aberta':'🔵 Jejum'} · ${hm(f.left)}</button><button style="flex:1" onclick="wat(250)">💧 ${a.water}/${S.g.water} +250</button><button onclick="go('jn')">📝 ${(a.jn||[]).length}</button></div>`+whyCard(t,k)+
 mealList().map(m=>{const l=fd.filter(x=>x.meal==m);return `<div class=card><div class="row sp"><h2 style="margin:0;color:${mx(m)&&mk(l)>mx(m)?'var(--r)':'var(--m)'}">${m} · ${Math.round(mk(l))}${mx(m)?' / '+mx(m):''} kcal</h2><span><button onclick="cp('${m}')">⧉</button> <button class=pri onclick="fSheet('${m}')">+</button></span></div>${l.map(x=>`<div class=row style="margin-top:10px" onclick="fSheet('${m}',${x.id})">${x.ph?`<img data-ph="${x.ph}" class=th>`:''}<div style="flex:1">${esc(x.name)}<br><small>${x.n?x.n+' un · ':''}${x.gr}g · P${Math.round(x.v[1])} C${Math.round(x.v[2])} G${Math.round(x.v[3])}</small></div><b>${Math.round(x.v[0])}</b></div>`).join('')}</div>`}).join('')+ncCard()+nutCard()+adjCard()}
 // ---- adicionar alimento (um jeito por vez)
-const AMS=[['s','🔎','Buscar'],['w','🌐','Internet'],['b','▮▮','Código'],['l','🏷️','Rótulo'],['m','✍️','Manual']];
+const AMS=[['s','🔎','Buscar'],['w','🌐','Internet'],['b','▮▮','Código'],['l','🏷️','Rótulo'],['p','📸','Comida'],['m','✍️','Manual']];
 let AM='s';
 const sv=(i,v)=>{const e=$(i);if(e)e.value=v};
 function fBody(){const ex=day().food.some(y=>y.id==F.id);
 return `<div class="row sp"><select style="width:auto;margin:0" onchange="F.meal=this.value;room()">${S.meals.map(m=>`<option ${m.n==F.meal?'selected':''}>${esc(m.n)}</option>`).join('')}<option ${F.meal==NC?'selected':''}>${NC}</option></select>${ex?'<button onclick=delF()>🗑</button>':''}</div><div class=seg style="margin:12px 0 8px">${AMS.map(a=>`<button class="${AM==a[0]?'pri':''}" onclick="am('${a[0]}')">${a[1]} ${a[2]}</button>`).join('')}</div>`+
-(AM=='b'?'<button style="width:100%" onclick=scanBar()>▮▮ Ler código de barras</button><p style="margin:10px 0"><b>'+esc(F.name)+'</b></p>':AM=='l'?'<button style="width:100%" onclick=labelSheet()>🏷️ Fotografar rótulo</button><p style="margin:10px 0"><b>'+esc(F.name)+'</b></p>':`<input id=fnm placeholder="${AM=='m'||AM=='e'?'Nome do alimento':'Digite o nome do alimento'}" value="${esc(F.name)}" oninput="F.name=this.value;srch()">`+(AM=='w'?'<button style="width:100%;margin-top:8px" onclick="WRES[qk()]=0;webAuto()">Pesquisar na internet</button>':''))+
+(AM=='b'?`<div class=two><button class=pri onclick=scanBar()>▮▮ Escanear</button><button onclick="codePhoto('CAMERA')">📷 Foto do código</button></div><div class=row style="margin:8px 0"><input id=bcm inputmode=numeric placeholder="Digitar o código de barras" style="margin:0"><button onclick="codeFind($('#bcm').value)">Buscar</button></div><p style="margin:10px 0"><b>${esc(F.name)}</b></p>`:AM=='l'?`<div class=two><button class=pri onclick="labelSheet('CAMERA')">🏷️ Câmera</button><button onclick="labelSheet('PHOTOS')">🖼️ Galeria</button></div><button style="width:100%;margin-top:8px" onclick="foodSheet('CAMERA')">📸 Sem tabela? Foto do produto</button><p style="margin:10px 0"><b>${esc(F.name)}</b></p>`:AM=='p'?`<div class=two><button class=pri onclick="foodSheet('CAMERA')">📸 Câmera</button><button onclick="foodSheet('PHOTOS')">🖼️ Galeria</button></div><small>Fotografe a comida ou a embalagem. O app acha o alimento e monta a tabela nutricional.</small><p style="margin:10px 0"><b>${esc(F.name)}</b></p>`:`<input id=fnm placeholder="${AM=='m'||AM=='e'?'Nome do alimento':'Digite o nome do alimento'}" value="${esc(F.name)}" oninput="F.name=this.value;srch()">`+(AM=='w'?'<button style="width:100%;margin-top:8px" onclick="WRES[qk()]=0;webAuto()">Pesquisar na internet</button>':''))+
 `<div id=sr style="margin:8px 0"></div><div class=card style="margin:10px 0"><h2>Quantidade</h2><div class=row><button onclick="gs(-10)">−</button><input id=fgr type=number step=any value="${F.gr||''}" placeholder="0" onchange="const o=F.gr;F.gr=+this.value;fill(o);syncU()" style="text-align:center;margin:0"><b>g</b><button onclick="gs(10)">+</button></div><div class=row style="margin-top:10px"><small style="white-space:nowrap">1 un =</small><input id=fu type=number step=any placeholder="g" value="${F.u||''}" onchange="F.u=+this.value;syncU()" style="margin:0;width:70px"><button onclick="un(-1)">−</button><b id=fn style="min-width:30px;text-align:center">${F.n||0}</b><button class=pri onclick="un(1)">+</button><small>un</small></div></div><b id=fres></b><details><summary style="padding:8px 0;color:var(--m)">✏️ Ajustar valores</summary><div class=row>${num('ik','kcal',0)}${num('ip','Prot',1)}${num('ic','Carb',2)}${num('ig','Gord',3)}</div></details><details><summary style="padding:8px 0;color:var(--m)">📋 Rótulo nutricional</summary><div id=nlb></div></details><details><summary style="padding:8px 0;color:var(--m)">⚖️ Quanto posso comer?</summary><p id=rm style="margin:8px 0;font-size:13px"></p><div class=row><small>Por kcal:</small><input id=fkc type=number placeholder="ex.: 200" style="margin:0"><button onclick=byK()>→ g</button></div></details><div class=row style="margin:14px 0"><button onclick=shot()>📷 Foto</button><button onclick=toLib()>📚 Guardar</button><img id=fp class=th style=display:none onload="this.style.display=''"></div><button class=pri style="width:100%" onclick=addF()>Salvar</button>`}
 function fSheet(meal,id){const x=id&&day().food.find(y=>y.id==id);F=x?JSON.parse(JSON.stringify(x)):{id:Date.now(),meal,name:'',gr:0,v:Array(10).fill(0),ph:0,u:0,n:0};AM=x?'e':S.addm||'s';sheet(fBody());fInit()}
 const fInit=()=>{srch();room();fres();if(F.ph)ph('get',F.ph).then(u=>u&&($('#fp').src=u))};
 const fRe=()=>{const s=$('.sheet>div');if(s){s.innerHTML='<div class=grab></div>'+fBody();trDom(s)}fInit()};
-const am=m=>{AM=m;S.addm=m;save();fRe();if(m=='b')scanBar();if(m=='l')labelSheet()};
+const am=m=>{AM=m;S.addm=m;save();fRe();if(m=='b')scanBar();if(m=='l')labelSheet('CAMERA');if(m=='p')foodSheet('CAMERA')};
 const fres=()=>{const e=$('#fres');if(e)e.textContent=Math.round(F.v[0])+' kcal · P'+Math.round(F.v[1])+' · C'+Math.round(F.v[2])+' · G'+Math.round(F.v[3]);const n=$('#nlb');if(n&&F.gr>0)n.innerHTML=nlabel(full(F),'Porção de '+F.gr+' g',F.ing)};
 function fill(o){const r=ALL().find(x=>x[0].toLowerCase()==F.name.toLowerCase());if(r)F.v=r.slice(1,11).map(n=>+(n*F.gr/100).toFixed(1));else if(o>0&&F.gr>0)F.v=F.v.map(n=>+(n*F.gr/o).toFixed(1));['ik','ip','ic','ig'].forEach((x,i)=>sv('#'+x,Math.round(F.v[i])));fres();room()}
 const pk=i=>{const r=ALL()[i];F.name=r[0];F.u=r[11]||UN[r[0]]||0;F.n=F.u?1:0;F.gr=F.u||100;F.xb=r[12]||{};F.ing=r[13]||'';sv('#fnm',r[0]);sv('#fgr',F.gr);sv('#fu',F.u||'');const n=$('#fn');if(n)n.textContent=F.n;fill();const e=$('#sr');if(e)e.innerHTML=''};
@@ -394,17 +394,244 @@ const fmtN=(v,u)=>(u=='kcal'||u=='mg'||v>=10?Math.round(v):(+v).toFixed(1))+' '+
 function nlabel(o,title,ing){return `<div class=nl><b>INFORMAÇÃO NUTRICIONAL</b><div style="font-size:12px;margin:2px 0 6px">${title}</div><div class="nr nh"><span></span><span>Quantidade</span><span>%VD*</span></div>${NUT.map(n=>{const v=o[n[0]];if(!(v>0)&&!BASIC.includes(n[0]))return'';return `<div class=nr><span>${n[1].replace(/^ +/,'&nbsp;&nbsp;')}</span><span>${fmtN(v||0,n[2])}</span><span>${n[3]?Math.round((v||0)/n[3]*100)+'%':''}</span></div>`}).join('')}${ing?`<p style="margin-top:8px;font-size:12px"><b>Ingredientes:</b> ${esc(ing)}</p>`:''}<small>*% Valores Diários de referência com base em uma dieta de 2.000 kcal.</small></div>`}
 const nutCard=()=>`<details class=card><summary style="font-weight:600">📋 Nutrientes do dia</summary><div style="margin-top:10px">${nlabel(nutDay(D),'Total do dia')}</div></details>`;
 // ---- rótulo: foto -> texto -> tabela
-const OCR=()=>C().CapacitorOcr,LBK=[['kcal','kcal'],['prot','Prot'],['carb','Carb'],['sug','Açúcares'],['fat','Gord'],['sat','Saturada'],['trans','Trans'],['fib','Fibra'],['na','Sódio mg'],['ca','Cálcio mg'],['fe','Ferro mg'],['k','Potássio mg'],['chol','Colesterol mg']];
-function parseLabel(L){const T=L.join('\n'),o={v:{},por:0,ing:''},pm=T.match(/por[çc][aã]o[^0-9\n]{0,30}(\d+[.,]?\d*)\s*(?:g|ml)/i);if(pm)o.por=+pm[1].replace(',','.');
-const im=T.match(/ingredientes?\s*[:;.]?\s*([\s\S]{5,700}?)(?=\n\s*(?:al[eé]rgicos|cont[eé]m|n[aã]o cont|informa[cç]|valor energ|produzid|fabricad|ind[uú]stria|validade|lote)|$)/i);if(im)o.ing=im[1].replace(/\s*\n\s*/g,' ').trim();
-const KS=[['sat',/saturad/i],['trans',/trans/i],['sug',/a[cç][uú]car/i],['fib',/fibra/i],['na',/s[oó]dio/i],['ca',/c[aá]lcio/i],['fe',/ferro/i],['k',/pot[aá]ssio/i],['chol',/colesterol/i],['fat',/gorduras?\s*totais|lip[ií]d/i],['carb',/carboidrat/i],['prot',/prote[ií]n/i],['kcal',/energ[eé]tico|energia|calorias/i]],num=s=>(s.replace(/\d+[.,]?\d*\s*%/g,' ').match(/\d+(?:[.,]\d+)?/g)||[]).map(x=>+x.replace(',','.')),raw={};let ing=false;
-L.forEach((l,i)=>{if(/ingredientes?\b/i.test(l))ing=true;if(ing){if(/al[eé]rgicos|cont[eé]m|informa[cç]|valor energ/i.test(l)&&!/ingredientes?\b/i.test(l))ing=false;else return}const k=KS.find(z=>z[1].test(l));if(!k||raw[k[0]])return;let v=num(l);if(!v.length&&l.length<40&&L[i+1])v=num(L[i+1]);if(v.length)raw[k[0]]=v});
-let two=0,one=0;for(const k in raw)raw[k].length>1?two++:one++;const r=o.por>0?o.por/100:0,el=L.find(l=>/energ/i.test(l))||'';
-for(const k in raw){let v=raw[k];if(k=='kcal'&&/kj/i.test(el)&&v.length>1&&v[1]>v[0]*3)v=[v[0]];let a=v[0];if(v.length>1&&r>0){if(!(Math.abs(v[1]-a*r)<=Math.abs(a-v[1]*r)))a=v[1]}else if(v.length==1&&r>0&&one>two)a=a/r;o.v[k]=+(+a).toFixed(1)}
-if(!o.v.kcal&&(o.v.prot||o.v.carb||o.v.fat))o.v.kcal=Math.round(4*(o.v.prot||0)+4*(o.v.carb||0)+9*(o.v.fat||0));return o}
-async function labelSheet(){const u=await snap(1800);if(!u)return;WM=F.meal;let L=[],err='';try{L=await ocrLines(u)}catch(e){err=String(e.message||e)}if(!err&&!L.length)err='Não li nada. Foto de perto, com luz e o rótulo reto.';const o=parseLabel(L),fl=(id,l,v)=>`<label style="flex:1;min-width:30%;font-size:12px;color:var(--m)">${l}<input id=${id} type=number step=any value="${v==null?'':v}"></label>`;
-sheet(`<h2>Rótulo nutricional</h2><img src="${u}" style="width:100%;max-height:200px;object-fit:contain;border-radius:12px">${err?'<div class=wr>'+esc(err)+'</div>':''}<input id=lbn placeholder="Nome do produto" style="margin:10px 0" value="${esc(F.name)}"><small>Valores por 100 g (o app converteu da porção). Confira e corrija.</small><div class=row style="flex-wrap:wrap;margin:8px 0">${fl('lbp','Porção (g)',o.por||'')}${LBK.map(k=>fl('lb_'+k[0],k[1],o.v[k[0]])).join('')}</div><textarea id=lbi rows=3 placeholder="Ingredientes">${esc(o.ing)}</textarea><details style="margin:8px 0"><summary style="color:var(--m)">Texto lido</summary><small>${esc(L.join(' | '))}</small></details><button class=pri style="width:100%" onclick=lbSave()>Salvar e usar</button>`)}
-function lbSave(){const g=k=>+($('#lb_'+k).value)||0,x={};['sug','sat','trans','chol'].forEach(k=>{if(g(k)>0)x[k]=g(k)});S.lib.push([$('#lbn').value||'Produto',Math.round(g('kcal')),g('prot'),g('carb'),g('fat'),g('fib'),Math.round(g('na')),Math.round(g('ca')),g('fe'),Math.round(g('k')),0,+$('#lbp').value||0,x,$('#lbi').value.trim()]);save();closeS();WC=1;fSheet(WM);pk(DB.length+S.lib.length-1)}
+// ---- scan v2: foto, rótulo, código de barras e comida
+const OFF_F='code,product_name,product_name_pt,generic_name,brands,nutriments,serving_quantity,nutrition_data_per,ingredients_text,ingredients_text_pt';
+const BCF=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','ITF'];
+const tmo=(u,ms)=>{const a=new AbortController(),t=setTimeout(()=>a.abort(),ms||9000);return fetch(u,{signal:a.signal}).finally(()=>clearTimeout(t))};
+const toDU=u=>fetch(u).then(r=>r.blob()).then(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)}));
+
+// foto: câmera ou galeria. Devolve {u:dataUrl, path}
+async function grab(o){o=o||{};const P=C().Camera;
+try{
+if(P){const x=await P.getPhoto({quality:90,width:o.w||2200,resultType:'uri',source:o.src||'CAMERA',saveToGallery:false,correctOrientation:true});return{u:await toDU(x.webPath||x.path),path:x.path||''}}
+const u=await new Promise(r=>{const i=document.createElement('input');i.type='file';i.accept='image/*';if(o.src!='PHOTOS')i.capture='environment';i.onchange=()=>{if(!i.files[0])return r(null);const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(i.files[0])};i.click()});
+return u?{u,path:''}:null
+}catch(e){return null}}
+
+// melhora a imagem para o OCR: reduz, cinza e estica o contraste
+function prep(u,o){o=o||{};return new Promise(r=>{const i=new Image();i.onload=()=>{try{
+const s=Math.min(1,(o.max||2000)/Math.max(i.width,i.height)),w=Math.round(i.width*s),h=Math.round(i.height*s),c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(i,0,0,w,h);
+if(o.enh){const d=x.getImageData(0,0,w,h),a=d.data,hist=new Uint32Array(256),t=w*h;
+for(let k=0;k<a.length;k+=4){const l=(a[k]*77+a[k+1]*150+a[k+2]*29)>>8;a[k]=a[k+1]=a[k+2]=l;hist[l]++}
+let lo=0,hi=255,n=0;for(;lo<254&&(n+=hist[lo])<t*.02;lo++);n=0;for(;hi>1&&(n+=hist[hi])<t*.02;hi--);
+const sc=255/Math.max(20,hi-lo);for(let k=0;k<a.length;k+=4){const v=Math.max(0,Math.min(255,(a[k]-lo)*sc));a[k]=a[k+1]=a[k+2]=v}x.putImageData(d,0,0)}
+r(c.toDataURL('image/jpeg',.92))}catch(e){r(u)}};i.onerror=()=>r(u);i.src=u})}
+
+// ---- Open Food Facts
+const off=p=>{const n=p.nutriments||{},sq=+p.serving_quantity||0,
+g=k=>{let v=n[k+'_100g'];if(v==null||v==='')v=n[k+'_serving']!=null&&sq>0?n[k+'_serving']*100/sq:0;return+v||0},
+m=k=>g(k)*1000,x={},put=(k,v)=>{if(v>0)x[k]=+(+v).toFixed(2)};
+put('sug',g('sugars'));put('sat',g('saturated-fat'));put('trans',g('trans-fat'));put('chol',m('cholesterol'));put('mg',m('magnesium'));put('zn',m('zinc'));put('p',m('phosphorus'));put('vA',g('vitamin-a')*1e6);put('vD',g('vitamin-d')*1e6);put('vE',m('vitamin-e'));put('vK',g('vitamin-k')*1e6);put('vB12',g('vitamin-b12')*1e6);put('fol',g('vitamin-b9')*1e6);
+const P=g('proteins'),Cb=g('carbohydrates'),G=g('fat');
+let kc=+n['energy-kcal_100g']||(n['energy-kcal_serving']!=null&&sq>0?n['energy-kcal_serving']*100/sq:0)||g('energy-kj')/4.184||g('energy')/4.184;
+if(!(kc>0)&&(P||Cb||G))kc=4*P+4*Cb+9*G;
+const na=m('sodium')||g('salt')*400,nm=p.product_name_pt||p.product_name||p.generic_name||'Produto';
+return[nm+(p.brands?' ('+p.brands.split(',')[0]+')':''),Math.round(kc||0),r1(P),r1(Cb),r1(G),r1(g('fiber')),Math.round(na),Math.round(m('calcium')),r1(m('iron')),Math.round(m('potassium')),r1(m('vitamin-c')),sq,x,p.ingredients_text_pt||p.ingredients_text||'']};
+const ean=c=>{if(![8,12,13,14].includes(c.length))return false;const d=c.split('').map(Number),k=d.pop();let s=0;d.reverse().forEach((z,i)=>s+=z*(i%2?1:3));return(10-s%10)%10==k};
+const codeVars=c=>{const a=[c];if(c.length==12)a.push('0'+c);if(c.length==13&&c[0]=='0')a.push(c.slice(1));if(c.length==14)a.push(c.slice(1));return a.filter((x,i)=>a.indexOf(x)==i)};
+async function offGet(c){let err;for(let t=0;t<2;t++){try{const r=await tmo('https://world.openfoodfacts.org/api/v2/product/'+c+'.json?fields='+OFF_F,9000);if(r.status==404)return null;const j=await r.json();return j.status==1&&j.product?j.product:null}catch(e){err=e}}throw err}
+async function offCode(c){for(const v of codeVars(c)){const p=await offGet(v);if(p)return p}return null}
+async function offSearch(q,n){let a=[],bad=0;const u=h=>'https://'+h+'.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size='+(n||15)+'&lc=pt&sort_by=unique_scans_n&fields='+OFF_F+'&search_terms='+encodeURIComponent(q);
+for(const h of['br','world']){try{const j=await(await tmo(u(h),9000)).json();a=(j.products||[]).filter(p=>(p.product_name||p.product_name_pt)&&p.nutriments).map(off).filter(x=>x[1]>0);if(a.length>=3)break}catch(e){bad++}}
+if(bad==2&&!a.length)throw new Error('net');return a}
+
+// ---- código de barras
+async function scanBar(){const B=C().BarcodeScanner;if(!B)return toast('Disponível só no app instalado');
+try{const a=await B.isGoogleBarcodeScannerModuleAvailable();if(!a.available){await B.installGoogleBarcodeScannerModule();return toast('Instalando o leitor do Google… tente de novo em 1 minuto')}
+const r=await B.scan({formats:BCF,autoZoom:true}),b=(r.barcodes||[]).map(x=>String(x.rawValue||'').replace(/\D/g,'')).filter(Boolean);
+if(!b.length)return;codeFind(b.find(ean)||b[0])
+}catch(e){if(/cancel/i.test(String(e&&e.message||e)))return;toast('O leitor falhou. Use "Foto do código" ou digite os números.')}}
+async function readBar(s){const B=C().BarcodeScanner;if(!B||!B.readBarcodesFromImage||!s.path)return'';
+const p0=s.path.replace(/^file:\/\//,''),L=[s.path,p0,'file://'+p0].filter((x,i,a)=>a.indexOf(x)==i);
+for(const p of L){try{const r=await B.readBarcodesFromImage({path:p,formats:BCF}),b=(r.barcodes||[]).map(x=>String(x.rawValue||'').replace(/\D/g,'')).filter(Boolean);if(b.length)return b.find(ean)||b[0]}catch(e){}}return''}
+const codeIn=rows=>{for(const r of rows){const m=r.t.match(/\d[\d ]{6,18}\d/g)||[];for(const s of m){const d=s.replace(/ /g,'');if(ean(d))return d}}return''};
+async function codePhoto(src){const s=await grab({src,w:2200});if(!s)return;toast('Lendo o código…');
+let c=await readBar(s);
+if(!c){try{c=codeIn(rowsOf(await ocrRead(s.u,0)));if(!c)c=codeIn(rowsOf(await ocrRead(await prep(s.u,{max:2000,enh:1}),0)))}catch(e){}}
+if(!c)return toast('Não achei o código na foto. Chegue perto, com luz e o código reto. Ou digite os números.');
+codeFind(c)}
+async function codeFind(raw){const c=String(raw||'').replace(/\D/g,'');if(c.length<8)return toast('Código curto demais. Confira os números.');
+if(!ean(c))toast('Leitura duvidosa. Confira os números do código.');else toast('Buscando produto…');
+let p=null,net=0;try{p=await offCode(c)}catch(e){net=1}
+if(!p)return codeMiss(c,net);
+const r=off(p);if(!(r[1]>0))return codeMiss(c,0,r[0]);
+WR=[r];WC=1;WM=F&&F.meal;wpk(0)}
+function codeMiss(c,net,name){if(name&&F)F.name=name;
+sheet(`<h2>${name?esc(name):'Produto não encontrado'}</h2><p style="margin:8px 0">${net?'Sem internet. Tente de novo.':name?'O produto existe no banco, mas sem tabela nutricional.':'O código '+esc(c)+' não está no banco Open Food Facts.'}</p><div class=row style="margin:10px 0"><input id=cm inputmode=numeric value="${esc(c)}" style="margin:0"><button onclick="codeFind($('#cm').value)">Buscar</button></div><button class=pri style="width:100%;margin-bottom:8px" onclick="labelSheet('CAMERA')">🏷️ Fotografar o rótulo</button><button style="width:100%;margin-bottom:8px" onclick="foodSheet('CAMERA')">📸 Foto do produto (buscar pelo nome)</button><button style="width:100%;margin-bottom:8px" onclick=scanBar()>▮▮ Escanear de novo</button><button style="width:100%" onclick=manualGo()>✍️ Digitar os valores</button>`)}
+function manualGo(){const m=F.meal,n=F.name;WM=m;closeS();fSheet(m);F.name=n||'';AM='m';fRe()}
+
+// ---- OCR
+async function ocrRead(u,rot){const P=C().OcrNow;if(!P)throw new Error('Leitura só funciona no app instalado');const r=await P.read({b:u.split(',')[1],rot:rot||0});return{lines:(r.lines||[]).map(s=>String(s).trim()).filter(Boolean),w:(r.w||[]).filter(x=>x&&String(x.t).trim())}}
+const ocrLines=async u=>(await ocrRead(u)).lines;
+// junta as palavras em linhas pela posição vertical
+function rowsOf(R){let W=R.w||[];
+if(!W.length)W=(R.lines||[]).flatMap((t,i)=>t.split(/\s+/).map((s,j)=>({t:s,x0:j*10,x1:j*10+9,y0:i*12,y1:i*12+10})));
+if(!W.length)return[];
+// corrige foto inclinada: gira as palavras pelo ângulo mediano das linhas
+const as=W.map(w=>w.a).filter(a=>typeof a=='number'&&isFinite(a)).sort((p,q)=>p-q),an=as.length?as[as.length>>1]:0;
+if(Math.abs(an)>.4&&Math.abs(an)<35){const c=Math.cos(an*Math.PI/180),sn=Math.sin(an*Math.PI/180);W=W.map(w=>{const cx=(w.x0+w.x1)/2,cy=(w.y0+w.y1)/2,hw=(w.x1-w.x0)/2,hh=(w.y1-w.y0)/2,nx=cx*c+cy*sn,ny=-cx*sn+cy*c;return{...w,x0:nx-hw,x1:nx+hw,y0:ny-hh,y1:ny+hh}})}
+const hs=W.map(w=>w.y1-w.y0).sort((a,b)=>a-b),mh=hs[hs.length>>1]||10,s=W.slice().sort((a,b)=>(a.y0+a.y1)-(b.y0+b.y1)),A=[];
+s.forEach(w=>{const cy=(w.y0+w.y1)/2,r=A[A.length-1];if(r&&Math.abs(cy-r.cy)<mh*.55){r.w.push(w);r.cy=r.w.reduce((n,z)=>n+(z.y0+z.y1)/2,0)/r.w.length}else A.push({cy,w:[w]})});
+A.forEach(r=>{r.w.sort((a,b)=>a.x0-b.x0);r.t=r.w.map(z=>z.t).join(' ')});return A}
+const LBK=[['kcal','kcal'],['prot','Prot'],['carb','Carb'],['sug','Açúcares'],['fat','Gord'],['sat','Saturada'],['trans','Trans'],['fib','Fibra'],['na','Sódio mg'],['ca','Cálcio mg'],['fe','Ferro mg'],['k','Potássio mg'],['chol','Colesterol mg']],
+LBX=[['vC','Vit C mg'],['mg','Magnésio mg'],['zn','Zinco mg'],['p','Fósforo mg'],['vA','Vit A µg'],['vD','Vit D µg'],['vE','Vit E mg'],['vK','Vit K µg'],['vB12','B12 µg'],['fol','Folato µg']];
+const MASS={g:1,mg:1e-3,'µg':1e-6},EXP={kcal:'kcal',prot:'g',carb:'g',fat:'g',sat:'g',trans:'g',sug:'g',fib:'g',na:'mg',ca:'mg',fe:'mg',k:'mg',chol:'mg',mg:'mg',zn:'mg',p:'mg',vC:'mg',vE:'mg',vA:'µg',vD:'µg',vK:'µg',vB12:'µg',fol:'µg'};
+const cvu=(v,u,k)=>MASS[u]&&MASS[EXP[k]]?v*MASS[u]/MASS[EXP[k]]:v;
+// 0 = linha a ignorar. Ordem importa: o primeiro que casa vence
+const KY=[[0,/monoinsat|poliinsat|adicionad|lactose|poliol|amido|inulina|oligo|embalagem/],['sat',/saturad/],['trans',/\btrans\b/],['sug',/acucar/],['fib',/fibra/],['na',/\bsodio|sodium/],['ca',/calcio/],['fe',/\bferro\b/],['k',/potassio/],['mg',/magnesio/],['zn',/\bzinco\b/],['p',/fosforo/],['chol',/colesterol/],['vB12',/\bb12\b|vitamina b ?12|cobalamina/],['vA',/vitamina a\b|\bvit\.? ?a\b/],['vC',/vitamina c\b|\bvit\.? ?c\b/],['vD',/vitamina d\b/],['vE',/vitamina e\b/],['vK',/vitamina k\b/],['fol',/folato|folico/],['fat',/gordura|lipid/],['carb',/carboidr/],['prot',/protein/],['kcal',/valor energ|energia|caloria|energet/]];
+const keyOf=n=>{for(const z of KY)if(z[1].test(n))return z[0]};
+const fixT=t=>{t=String(t).trim().replace(/^[(\[*~>]+/,'').replace(/[)\],;:*]+$/g,'');if(/^[Oo]$/.test(t))return'0';if(/^[Oo](g|mg)$/i.test(t))return'0'+t.slice(1);if(/^m9$/i.test(t))return'mg';return t};
+const UNR=/^(kcal|kj|mg|mcg|µg|μg|ug|g|ml|%)$/i;
+function toks(r){const W=r.w.map(w=>({t:fixT(w.t),x:(w.x0+w.x1)/2})),o=[];
+for(let i=0;i<W.length;i++){const m=W[i].t.match(/^(<)?(\d+(?:[.,]\d+)?)([a-zµμ%]*)$/i);if(!m)continue;
+let v=+m[2].replace(',','.'),u=m[3].toLowerCase(),x=W[i].x;if(m[1])v/=2;
+if(!u&&W[i+1]&&UNR.test(W[i+1].t)){u=W[i+1].t.toLowerCase();x=(x+W[i+1].x)/2;i++}
+u=u.replace('μ','µ').replace(/^(mcg|ug)$/,'µg');if(!/^(kcal|kj|mg|µg|g|ml|%)$/.test(u))u='';o.push({v,u,x})}
+return o}
+const pm=s=>{const i=s.search(/porcao/);if(i<0)return 0;const a=[...s.slice(i,i+70).matchAll(/(\d+(?:[.,]\d+)?)\s*(g|ml)\b/g)].map(m=>+m[1].replace(',','.'));return a.find(x=>x!=100)||a[0]||0};
+const incons=v=>{const e=4*(v.prot||0)+4*(v.carb||0)+9*(v.fat||0);return(v.kcal&&e>20?Math.abs(v.kcal-e)/e:0)+((v.prot||0)+(v.carb||0)+(v.fat||0)>105?1:0)};
+function parseLabel2(R){const o={v:{},por:0,ing:'',warn:[]},rows=rowsOf(R),N=rows.map(r=>nz(r.t));
+for(const n of N){const v=pm(n);if(v){o.por=v;break}}
+let st=N.findIndex(n=>/informacao nutricional|tabela nutricional|valor energ|quantidade por|nutrition facts/.test(n));if(st<0)st=0;
+let ing=0;const it=[],E=[];
+rows.forEach((r,i)=>{const n=N[i];
+if(/^ingredientes?\b|\bingredientes\s*[:;]/.test(n)){ing=1;it.push(r.t.replace(/^.*?ingredientes?\s*[:;.]?\s*/i,''));return}
+if(ing){if(/alergic|contem|nao contem|informacao nutri|valores? diarios|valor energ|porcao|quantidade por|fabricad|validade|lote|industria|cnpj|\bsac\b/.test(n))ing=0;else{it.push(r.t);return}}
+if(i<st)return;const k=keyOf(n);if(!k||E.some(e=>e.k==k))return;
+let T=toks(r);if(!T.length&&rows[i+1]&&keyOf(N[i+1])===undefined)T=toks(rows[i+1]);
+if(T.length)E.push({k,T,i})});
+o.ing=it.join(' ').replace(/\s+/g,' ').trim().slice(0,700);
+E.forEach(e=>{const t=e.T.filter(z=>z.u!='%'&&z.u!='kj');e.V=e.k=='kcal'?t.filter(z=>z.u=='kcal'):t.filter(z=>z.u&&z.u!='kcal');if(!e.V.length){e.V=t.filter(z=>!z.u);if(e.V.length>2)e.V=e.V.slice(0,2)}});
+const two=E.filter(e=>e.V.length>=2).length,one=E.filter(e=>e.V.length==1).length,dbl=two>0&&two>=one;
+let c0=0,c1=0;if(dbl){const a=E.filter(e=>e.V.length>=2);c0=a.reduce((s,e)=>s+e.V[0].x,0)/a.length;c1=a.reduce((s,e)=>s+e.V[1].x,0)/a.length}
+const fi=E.length?Math.min(...E.map(e=>e.i)):rows.length;
+let f100=null,sg=true;
+for(let i=Math.max(0,fi-6);i<fi&&f100===null;i++){const r=rows[i],t=toks(r).filter(z=>/^(g|ml)$/.test(z.u)),a=t.find(z=>z.v==100),b=t.find(z=>z.v!=100);
+if(a&&b)f100=a.x<b.x;else{const w1=r.w.find(w=>/^100/.test(w.t)),w2=r.w.find(w=>/^porc/.test(nz(w.t)));if(w1&&w2)f100=w1.x0<w2.x0}}
+if(f100===null&&dbl&&o.por>0){const q=o.por/100;let s=0;E.forEach(e=>{if(e.V.length<2)return;const a=e.V[0].v,b=e.V[1].v,m=Math.max(a,b);if(!m||q==1)return;const e1=Math.abs(b-a*q)/m,e2=Math.abs(a-b*q)/m;if(e1<e2)s++;else if(e2<e1)s--});f100=s>=0}
+if(!dbl){const h=N.slice(Math.max(0,fi-6),fi).join(' ');sg=/\b100 ?(g|ml)\b/.test(h)||!(o.por>0)}
+const build=f=>{const v={};E.forEach(e=>{if(!e.V.length)return;let t,p100=true;
+if(dbl){if(e.V.length>=2)t=e.V[f?0:1];else{const x=e.V[0].x,first=Math.abs(x-c0)<=Math.abs(x-c1);t=e.V[0];p100=first==f}}else{t=e.V[0];p100=sg}
+let x=cvu(t.v,t.u,e.k);if(!p100){if(o.por>0)x=x*100/o.por;else return}v[e.k]=+x.toFixed(2)});
+if(!v.kcal&&(v.prot||v.carb||v.fat)){v.kcal=Math.round(4*(v.prot||0)+4*(v.carb||0)+9*(v.fat||0));v._e=1}return v};
+let f=f100!==false,v=build(f);
+if(dbl&&incons(v)>.35){const v2=build(!f);if(incons(v2)<incons(v)){v=v2;f=!f}}
+if(v._e){o.est=1;delete v._e}
+o.v=v;
+if(!o.est&&incons(v)>.35)o.warn.push('As calorias não batem com os macros. Confira os valores.');
+if((v.prot||0)+(v.carb||0)+(v.fat||0)>105)o.warn.push('Macros somam mais de 100 g. Talvez misturou porção e 100 g.');
+if(o.est)o.warn.push('Calorias calculadas pelos macros (não achei no rótulo).');
+return o}
+const fillMiss=(a,b)=>{if(a.por&&b.por&&a.por!=b.por)return;for(const k in b.v)if(a.v[k]==null)a.v[k]=b.v[k];if(!a.ing)a.ing=b.ing;if(!a.por)a.por=b.por};
+// tenta: original, imagem melhorada, girada 90/270/180. Fica com a melhor leitura
+async function ocrBest(u,step){let best=null;const U={o:u},T=[['o',0],['e',0],['o',90],['o',270],['o',180]];
+for(const t of T){if(best&&best.sc>=9)break;if(t[0]=='e'&&!U.e)U.e=await prep(u,{max:2000,enh:1});if(step)step(t);
+let r;try{r=await ocrRead(U[t[0]],t[1])}catch(e){if(!best&&t===T[0])throw e;continue}
+const p=parseLabel2(r);p.sc=Object.keys(p.v).length+(p.por?1:0);p.raw=r;p.rot=t[1];
+if(!best||p.sc>best.sc){if(best&&best.rot==p.rot)fillMiss(p,best);best=p}else if(p.rot==best.rot)fillMiss(best,p)}
+if(best)best.sc=Object.keys(best.v).length+(best.por?1:0);return best}
+
+// ---- rótulo: foto -> texto -> tabela
+let LB=null;
+async function labelSheet(src){const s=await grab({src,w:2200});if(!s)return;LB={s};WM=F&&F.meal;labelRun()}
+async function labelRun(){sheet('<h2>Lendo o rótulo…</h2><div class=breathe></div><small id=lbst>Lendo texto…</small>');
+let o,err='';try{o=await ocrBest(LB.s.u,t=>{const e=$('#lbst');if(e)e.textContent=tl(t[0]=='e'?'Melhorando a imagem…':t[1]?'Girando a imagem…':'Lendo texto…')})}catch(e){err=String(e.message||e)}
+o=o||{v:{},por:0,ing:'',warn:[],raw:{lines:[]},sc:0};
+if(!err&&!Object.keys(o.v).length)err='Não achei a tabela. Chegue perto, com luz, rótulo reto e sem reflexo. Você também pode usar a galeria.';
+LB.o=o;labelForm(err)}
+function labelForm(err){const o=LB.o,n=LBK.filter(k=>o.v[k[0]]!=null).length,
+fl=(k,l)=>`<label class="${o.v[k]==null?'miss':''}" style="flex:1;min-width:30%;font-size:12px;color:var(--m)">${l}<input id=lb_${k} type=number step=any value="${o.v[k]==null?'':o.v[k]}"></label>`;
+sheet(`<h2>Rótulo nutricional</h2><img src="${LB.s.u}" style="width:100%;max-height:200px;object-fit:contain;border-radius:12px"><div class=two style="margin:10px 0"><button onclick="labelSheet('CAMERA')">📷 Outra foto</button><button onclick="labelSheet('PHOTOS')">🖼️ Galeria</button></div><button style="width:100%;margin-bottom:8px" onclick=aiLabel()>🤖 Ler com IA</button>${err?'<div class=wr>'+esc(err)+'</div>':''}${(o.warn||[]).map(w=>'<div class=wr>'+esc(w)+'</div>').join('')}<input id=lbn placeholder="Nome do produto" style="margin:6px 0" value="${esc(F&&F.name||'')}"><small>Li ${n} de ${LBK.length} campos. Valores por 100 g (o app converteu da porção). Campos em amarelo ficaram vazios: confira.</small><div class=row style="flex-wrap:wrap;margin:8px 0"><label style="flex:1;min-width:30%;font-size:12px;color:var(--m)">Porção (g)<input id=lbp type=number step=any value="${o.por||''}"></label>${LBK.map(k=>fl(k[0],k[1])).join('')}</div><details style="margin:8px 0"${LBX.some(k=>o.v[k[0]]!=null)?' open':''}><summary style="color:var(--m)">Mais nutrientes</summary><div class=row style="flex-wrap:wrap;margin:8px 0">${LBX.map(k=>fl(k[0],k[1])).join('')}</div></details><textarea id=lbi rows=3 placeholder="Ingredientes">${esc(o.ing||'')}</textarea><details style="margin:8px 0"><summary style="color:var(--m)">Texto lido</summary><small>${esc(((o.raw&&o.raw.lines)||[]).join(' | '))}</small></details><button class=pri style="width:100%" onclick=lbSave()>Salvar e usar</button>`)}
+function lbSave(){const g=k=>+($('#lb_'+k).value)||0,x={};['sug','sat','trans','chol','mg','zn','p','vA','vD','vE','vK','vB12','fol'].forEach(k=>{if(g(k)>0)x[k]=g(k)});
+S.lib.push([$('#lbn').value||'Produto',Math.round(g('kcal')),g('prot'),g('carb'),g('fat'),g('fib'),Math.round(g('na')),Math.round(g('ca')),g('fe'),Math.round(g('k')),g('vC'),+$('#lbp').value||0,x,$('#lbi').value.trim()]);save();closeS();WC=1;fSheet(WM);pk(DB.length+S.lib.length-1)}
+
+// ---- foto da comida: código, texto da embalagem e reconhecimento de imagem
+const GEN=/^(food|dish|cuisine|ingredient|produce|recipe|tableware|plate|bowl|table|drink|staple food|natural foods|whole food|superfood|local food|comfort food|fast food|baked goods|junk food|snack|meal|lunch|dinner|breakfast|cup|serveware|dishware|kitchen|plant|flower|wood|hand|finger|textile|furniture|room|tree|leaf|fun|cooking|bakeware|platter|brunch|dessert|supper|sweetness|fruit|fruits|vegetable|vegetables|leaf vegetable|root vegetable|citrus|seedless fruit|material property|liquid|glass|bottle|packaging and labeling|label|font|text)$/i;
+const FD={banana:'banana',apple:'maçã',orange:'laranja',strawberry:'morango',grape:'uva',lemon:'limão',pineapple:'abacaxi',watermelon:'melancia',mango:'manga',pear:'pera',peach:'pêssego',papaya:'mamão',avocado:'abacate',tomato:'tomate',potato:'batata',carrot:'cenoura',broccoli:'brócolis',cucumber:'pepino',onion:'cebola',garlic:'alho',lettuce:'alface',corn:'milho',pumpkin:'abóbora',egg:'ovo',bread:'pão',rice:'arroz',pasta:'macarrão',pizza:'pizza',cake:'bolo',cookie:'biscoito',cheese:'queijo',milk:'leite',yogurt:'iogurte',chicken:'frango',beef:'carne bovina',steak:'bife',pork:'carne suína',fish:'peixe',salmon:'salmão',shrimp:'camarão',sausage:'linguiça',hamburger:'hambúrguer',sandwich:'sanduíche','french fries':'batata frita',salad:'salada',soup:'sopa',sushi:'sushi',chocolate:'chocolate','ice cream':'sorvete',coffee:'café',tea:'chá',juice:'suco',bean:'feijão',beans:'feijão',nut:'castanha',almond:'amêndoa',oat:'aveia',honey:'mel',butter:'manteiga',cereal:'cereal',pie:'torta',pancake:'panqueca',doughnut:'rosquinha',donut:'rosquinha','hot dog':'cachorro-quente',popcorn:'pipoca',cracker:'biscoito salgado',muffin:'muffin',cupcake:'cupcake',candy:'bala',meat:'carne',bacon:'bacon',ham:'presunto',coconut:'coco',kiwi:'kiwi',blueberry:'mirtilo',cherry:'cereja',melon:'melão',cabbage:'repolho',spinach:'espinafre',mushroom:'cogumelo','bell pepper':'pimentão',pepper:'pimentão','sweet potato':'batata-doce',cassava:'mandioca'};
+function nameGuess(rows){return rows.map(r=>({t:r.t,h:r.w.reduce((s,w)=>s+(w.y1-w.y0),0)/r.w.length,n:nz(r.t)})).filter(r=>/[a-z]{4,}/.test(r.n)&&!/\d{3,}|informacao|ingredientes|valor|porcao|validade|lote|fabric|industria|peso|liquido|conteudo|www|\.com|\bsac\b|cnpj|kcal|carboidr|protein|gordura|alergic|contem/.test(r.n)).sort((a,b)=>b.h-a.h).slice(0,2).map(r=>r.t.replace(/[^\p{L}\d ]/gu,' ').replace(/\s+/g,' ').trim()).filter(Boolean)}
+let FS=null;
+async function foodSheet(src){const s=await grab({src,w:1800});if(!s)return;WM=F&&F.meal;FS={u:s.u,pre:[],cand:[],sel:-1,q:'',names:[],guess:[],code:''};
+sheet('<h2>Analisando a foto…</h2><div class=breathe></div><small>'+(aiOn()?'Procurando código, texto e usando a IA…':'Procurando código, texto e o tipo de comida…')+'</small>');
+const P=C().OcrNow,b64=s.u.split(',')[1],aiP=aiOn()?aiFood(s.u).catch(e=>({err:String(e&&e.message||e)})):null;
+const[r1,r2,r3]=await Promise.all([ocrRead(s.u,0).catch(()=>null),P&&P.labels?P.labels({b:b64}).catch(()=>null):null,readBar(s)]);
+const rows=rowsOf(r1||{lines:[],w:[]}),labs=(r2&&r2.labels||[]).slice().sort((a,b)=>b.c-a.c),seen={};
+FS.names=labs.map(l=>{const t=String(l.t).toLowerCase();return GEN.test(t)?'':(FD[t]||t)}).filter(n=>n&&!seen[n]&&(seen[n]=1)).slice(0,4);
+FS.guess=nameGuess(rows);FS.code=r3||codeIn(rows);
+let net=0;
+if(FS.code){try{const p=await offCode(FS.code);if(p){const r=off(p);if(r[1]>0)FS.pre.push({r,i:-1,src:'📦'})}}catch(e){net=1}}
+if(aiP){const a=await aiP;if(a&&a.err)FS.aiErr=a.err;else if(a&&a.length)FS.pre=a.concat(FS.pre)}
+const top=labs.find(l=>!GEN.test(String(l.t).toLowerCase())),loose=top&&top.c>=.7&&FS.names.length;
+const q=(FS.pre.length?FS.pre[0].r[0]:loose?FS.names[0]:FS.guess.length?FS.guess.join(' '):FS.names[0]||'').replace(/ \(IA\)$/,'');
+fsShow(q);if(q)foodFind(q)}
+function fsShow(q){const ch=FS.names.concat(FS.guess).filter((x,i,a)=>x&&a.indexOf(x)==i).slice(0,6);FS.ch=ch;
+sheet(`<h2>Foto do alimento</h2><img src="${FS.u}" class=pv>${FS.aiErr?'<div class=wr id=aie>'+esc(FS.aiErr)+'</div>':''}<div class=two style="margin:8px 0"><button onclick=aiRun()>🤖 ${aiOn()?'Analisar com IA':'Ativar IA'}</button><button style="flex:0 0 52px" onclick="aiCfg('food')">⚙</button></div><p style="margin:8px 0;font-size:13px;color:var(--m)">${FS.code?'Código lido: '+esc(FS.code)+'. ':''}${ch.length?'Toque no que parece certo ou digite o nome:':'Não reconheci. Digite o nome:'}</p>${ch.length?`<div class=chips>${ch.map((c,i)=>`<button onclick="foodFind(FS.ch[${i}])">${esc(c)}</button>`).join('')}</div>`:''}<div class=row><input id=fsq placeholder="Nome do alimento" value="${esc(q||'')}" style="margin:0" onchange="foodFind(this.value)"><button onclick="foodFind($('#fsq').value)">🔎</button></div><div id=fsl></div><div id=fsn></div>`);fsList()}
+function fsList(busy,msg){const e=$('#fsl');if(!e||!FS)return;
+e.innerHTML=FS.cand.map((c,i)=>`<div class=row style="padding:9px 0;border-top:1px solid var(--ln)" onclick="fsPick(${i})"><div style="flex:1;min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.src} ${esc(c.r[0])}</div><small>P${c.r[2]} · C${c.r[3]} · G${c.r[4]}</small></div><span style="text-align:right"><b>${Math.round(c.r[1])}</b><br><small>kcal/100g</small></span></div>`).join('')+(busy?'<small>🌐 buscando na internet…</small>':'')+(msg?'<small>'+msg+'</small>':'');trDom(e)}
+async function foodFind(q){q=(q||'').trim();if(!q||!FS)return;FS.q=q;FS.sel=-1;const iq=$('#fsq');if(iq)iq.value=q;const nb=$('#fsn');if(nb)nb.innerHTML='';
+const seen={},a=[],add=x=>{const k=nz(x.r[0]);if(seen[k])return;seen[k]=1;a.push(x)};
+FS.pre.forEach(add);rank(q,ALL()).slice(0,6).forEach(y=>add({r:y[0],i:y[1],src:y[1]>=DB.length?'⭐':'📚'}));
+FS.cand=a;fsList(1);
+try{const w=await offSearch(q,12);if(FS.q!=q)return;w.slice(0,8).forEach(r=>add({r,i:-1,src:'🌐'}));FS.cand=a;fsList(0,a.length?'':'Nada achei. Tente outro nome.')}
+catch(e){if(FS.q==q)fsList(0,a.length?'🌐 sem internet':'Sem internet e nada local. Tente outro nome.')}}
+function fsPick(i){FS.sel=i;const c=FS.cand[i],r=c.r;FS.g=c.g||r[11]||UN[r[0]]||100;fsLab()}
+const fsG=d=>{FS.g=Math.max(0,(+FS.g||0)+d);fsLab()};
+function fsLab(){const e=$('#fsn'),c=FS.cand[FS.sel];if(!e||!c)return;const r=c.r,g=FS.g||0,o={gr:g,v:r.slice(1,11).map(n=>(n||0)*g/100),xb:r[12]||{}};
+e.innerHTML=`<div class=card style="margin:10px 0"><h2>Quantidade</h2><div class=row><button onclick="fsG(-10)">−</button><input id=fsg type=number step=any value="${g}" style="text-align:center;margin:0" onchange="FS.g=+this.value||0;fsLab()"><b>g</b><button onclick="fsG(10)">+</button></div><small>A foto não mede o peso. Ajuste a quantidade.</small></div>${nlabel(full(o),esc(r[0])+' · '+g+' g',r[13]||'')}<button class=pri style="width:100%;margin-top:10px" onclick=fsUse()>Usar este alimento</button>`;trDom(e);e.scrollIntoView({behavior:'smooth',block:'nearest'})}
+async function fsUse(){const c=FS.cand[FS.sel];if(!c)return;let k=c.i;
+if(k<0){k=S.lib.findIndex(x=>x[0]==c.r[0]);if(k<0){S.lib.push(c.r);k=S.lib.length-1;save()}k+=DB.length}
+const g=FS.g||100,u=FS.u;closeS();fSheet(WM);pk(k);F.gr=g;sv('#fgr',g);fill();syncU();
+try{const t=await prep(u,{max:720});F.ph='p'+F.id;await ph('put',F.ph,t);const e=$('#fp');if(e)e.src=t}catch(e){}}
+// ---- IA opcional (OpenRouter, OmniRoute ou qualquer API compatível com OpenAI)
+const AIK='jd_ai';let AIC='';
+const AIM={kcal:'kcal',prot:'prot',carb:'carb',sug:'acucar',fat:'gord',sat:'sat',trans:'trans',fib:'fibra',na:'sodio_mg',ca:'calcio_mg',fe:'ferro_mg',k:'potassio_mg',chol:'colest_mg',vC:'vitc_mg',mg:'magnesio_mg',zn:'zinco_mg',p:'fosforo_mg',vA:'vita_ug',vD:'vitd_ug',vE:'vite_mg',vK:'vitk_ug',vB12:'vitb12_ug',fol:'folato_ug'};
+const AIS=(n,z)=>'{'+Object.values(AIM).slice(0,n).map(x=>'"'+x+'":'+z).join(',')+'}';
+const aiGet=()=>{try{return JSON.parse(localStorage.getItem(AIK))||{}}catch(e){return{}}};
+const aiOn=()=>{const a=aiGet();return!!(a.key&&a.url&&a.model)};
+const jx=t=>{const m=String(t).replace(/```(?:json)?/g,'').match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0])}catch(e){return null}};
+function aiErr(st,d){let m='';try{const j=typeof d=='string'?JSON.parse(d):d;m=j&&j.error&&(j.error.message||j.error)||''}catch(e){}
+return st==401||st==403?'Chave inválida ou sem permissão.':st==402?'Sem crédito na conta da IA.':st==429?'Limite de uso da IA. Espere um pouco.':'Erro da IA ('+st+'). '+String(m).slice(0,120)}
+async function aiCall(msgs,max,cfg){const a=cfg||aiGet();if(!a.key||!a.url||!a.model)throw new Error('Configure a IA primeiro.');
+const url=String(a.url).replace(/\/+$/,'')+'/chat/completions',body={model:a.model,messages:msgs,temperature:.2,max_tokens:max||3000};
+if(/openrouter\.ai/.test(url))body.reasoning={effort:'low'};
+const H={'Content-Type':'application/json',Authorization:'Bearer '+a.key,'X-Title':'Jejum e Dieta'},N=C().CapacitorHttp;let st,d;
+try{
+if(N&&N.request){const r=await N.request({url,method:'POST',headers:H,data:body,connectTimeout:15000,readTimeout:90000});st=r.status;d=r.data}
+else{const c=new AbortController(),t=setTimeout(()=>c.abort(),90000);try{const r=await fetch(url,{method:'POST',headers:H,body:JSON.stringify(body),signal:c.signal});st=r.status;d=await r.text()}finally{clearTimeout(t)}}
+}catch(e){throw new Error('Sem conexão com a IA. Confira o endereço e a internet.')}
+if(st>=400)throw new Error(aiErr(st,d));
+let j;try{j=typeof d=='string'?JSON.parse(d):d}catch(e){throw new Error('Resposta inesperada da IA.')}
+const c=j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content,t=Array.isArray(c)?c.map(x=>x.text||'').join(''):String(c||'');
+if(!t.trim())throw new Error('A IA respondeu vazio. Tente outro modelo.');return t}
+function aiRow(it){const p=it&&it.por100;if(!p||!it.nome)return null;
+const n=k=>{const v=+p[AIM[k]];return v>0&&isFinite(v)?v:0},P=n('prot'),Cb=n('carb'),G=n('fat'),e=4*P+4*Cb+9*G;let kc=n('kcal');
+if(!kc||(e>20&&Math.abs(kc-e)/e>.35))kc=e;if(!(kc>0))return null;
+const x={};['sug','sat','trans','chol'].forEach(k=>{if(n(k)>0)x[k]=+n(k).toFixed(2)});
+return{r:[String(it.nome).trim().slice(0,60)+' (IA)',Math.round(kc),r1(P),r1(Cb),r1(G),r1(n('fib')),Math.round(n('na')),Math.round(n('ca')),r1(n('fe')),Math.round(n('k')),r1(n('vC')),0,x,''],i:-1,src:'🤖',g:Math.round(+it.gramas)||0}}
+async function aiFood(u){const img=await prep(u,{max:1100});
+const P='Foto de comida ou produto. Identifique o que aparece e estime em gramas a quantidade de cada item visível. Se for embalagem com tabela nutricional legível, use os valores dela. Senão use valores típicos por 100 g (TACO/USDA). Responda SÓ com JSON, sem texto extra: {"items":[{"nome":"nome em português","gramas":0,"confianca":0,"por100":'+AIS(14,0)+'}]}. No máximo 4 itens, o principal primeiro. Todos os valores são por 100 g do alimento. Campos terminados em _mg estão em mg.';
+const t=await aiCall([{role:'user',content:[{type:'text',text:P},{type:'image_url',image_url:{url:img}}]}],3000),j=jx(t),a=((j&&j.items)||[]).slice(0,4).map(aiRow).filter(Boolean);
+if(!a.length)throw new Error('A IA não reconheceu comida na foto.');return a}
+async function aiRun(){if(!aiOn())return aiCfg('food');if(!FS)return;toast('🤖 Analisando…');
+try{const a=await aiFood(FS.u);FS.aiErr='';const w=$('#aie');if(w)w.remove();FS.pre=a.concat(FS.pre.filter(x=>x.src!='🤖'));foodFind(a[0].r[0].replace(/ \(IA\)$/,''))}
+catch(e){FS.aiErr=String(e.message||e);fsShow(FS.q)}}
+async function aiLabel(){if(!aiOn())return aiCfg('label');if(!LB)return;toast('🤖 Lendo o rótulo…');
+try{const img=await prep(LB.s.u,{max:1600}),
+P='Esta foto mostra a tabela nutricional de um alimento (Brasil). Leia a tabela. Responda SÓ com JSON, sem texto extra: {"porcao_g":0,"por100":'+AIS(23,'null')+',"ingredientes":""}. Dê os valores POR 100 g (ou 100 ml). Se a tabela só tiver a coluna da porção, converta para 100 g usando o tamanho da porção. Use null no que não estiver na tabela. Não invente valores. Campos terminados em _mg estão em mg e os terminados em _ug em microgramas.',
+t=await aiCall([{role:'user',content:[{type:'text',text:P},{type:'image_url',image_url:{url:img}}]}],3500),j=jx(t);
+if(!j||!j.por100)throw new Error('A IA não achou a tabela.');
+const v={};for(const k in AIM){const x=j.por100[AIM[k]];if(x!=null&&x!==''&&isFinite(+x))v[k]=+x}
+if(!Object.keys(v).length)throw new Error('A IA não achou a tabela.');
+const w=['Lido pela IA. Confira os valores com o rótulo.'];if(incons(v)>.35)w.push('As calorias não batem com os macros. Confira os valores.');
+LB.o={v,por:+j.porcao_g||0,ing:String(j.ingredientes||'').slice(0,700),warn:w,raw:LB.o&&LB.o.raw,sc:Object.keys(v).length};labelForm('')}
+catch(e){toast(String(e.message||e))}}
+function aiCfg(ctx){const a=aiGet(),lb='display:block;margin:8px 0;color:var(--m);font-size:13px';AIC=ctx||'';
+sheet(`<h2>IA para reconhecer comida</h2><p style="font-size:13px;color:var(--m);margin-bottom:8px">Funciona com OpenRouter, OmniRoute ou qualquer serviço compatível com a API da OpenAI. A foto é enviada a esse serviço. A chave fica só neste aparelho e não entra no backup. Crie a chave com limite de gasto.</p><label style="${lb}">Endereço da API<input id=aiu value="${esc(a.url||'https://openrouter.ai/api/v1')}"></label><label style="${lb}">Modelo (precisa aceitar imagem)<input id=aim value="${esc(a.model||'google/gemini-3.5-flash-lite')}"></label><label style="${lb}">Chave da API<input id=aik type=password value="${esc(a.key||'')}" placeholder="sk-or-..."></label><div class=two style="margin-top:12px"><button onclick=aiTest()>Testar conexão</button><button class=pri onclick=aiSave()>Salvar</button></div>${a.key?'<button style="width:100%;margin-top:8px" onclick=aiDel()>Apagar a chave</button>':''}`)}
+const aiRead=()=>({url:$('#aiu').value.trim(),model:$('#aim').value.trim(),key:$('#aik').value.trim()});
+async function aiTest(){const a=aiRead();toast('Testando…');try{await aiCall([{role:'user',content:'Responda apenas: ok'}],600,a);toast('Funcionou ✓')}catch(e){toast(String(e.message||e))}}
+function aiSave(){const a=aiRead();try{localStorage.setItem(AIK,JSON.stringify(a))}catch(e){return toast('Não consegui salvar.')}toast('IA salva.');aiBack()}
+function aiDel(){try{localStorage.removeItem(AIK)}catch(e){}toast('Chave apagada.');aiBack(0)}
+function aiBack(go){const food=AIC=='food'&&FS&&FS.u,lab=AIC=='label'&&LB&&LB.o;
+if(food){fsShow(FS.q);if(go!==0&&aiOn())aiRun()}else if(lab){labelForm('');if(go!==0&&aiOn())aiLabel()}else closeS()}
 // ---- treino v2: cards fechados, séries com kg/reps/RIR, velocidade e inclinação
 const OPEN={},SPD=n=>n=='Caminhada'||n=='Corrida';
 const tgO=id=>{OPEN[id]=!OPEN[id];render()};
@@ -502,10 +729,11 @@ let loc=AM=='w'?[]:rank(q,ALL()),fuzzy='';if(!loc.length&&AM!='w'){loc=ALL().map
 const web=WRES[qk()]||[],lim=SMORE?30:8;
 e.innerHTML=fuzzy+loc.slice(0,lim).map(y=>rowH(y[0],y[1])).join('')+web.slice(0,AM=='w'||SMORE?15:4).map((x,i)=>rowH(x,i,qk(),1)).join('')+(loc.length>lim?'<button style="width:100%;margin-top:6px" onclick="SMORE=1;srch()">Mostrar mais</button>':'')+(WBUSY?'<small>🌐 buscando na internet…</small>':WERR?'<small>🌐 sem internet</small>':'')+(!loc.length&&!web.length&&!WBUSY&&q.length>2?'<small>Nada achou. Tente outro nome, o código de barras, 🌐 Internet ou ✍️ Manual.</small>':'');
 clearTimeout(WT);if(nz(q).length>2&&(AM=='s'||AM=='w')&&!WRES[qk()])WT=setTimeout(webAuto,650);trDom(e)}
-async function webAuto(){const q=F&&(F.name||'').trim(),k=qk();if(!q||WRES[k])return;WBUSY=1;WERR=0;srch();try{let a=[];const fl='fields=product_name,brands,nutriments,serving_quantity,ingredients_text,ingredients_text_pt';if(/^\d{8,14}$/.test(q)){const j=await(await fetch('https://world.openfoodfacts.org/api/v2/product/'+q+'.json?'+fl)).json();if(j.status==1)a=[off(j.product)]}else{const j=await(await fetch('https://br.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=15&lc=pt&'+fl+'&search_terms='+encodeURIComponent(q))).json();a=(j.products||[]).filter(p=>p.product_name&&p.nutriments).map(off).filter(x=>x[1]>0)}WRES[k]=a}catch(e){WERR=1;WRES[k]=[]}WBUSY=0;if($('#sr'))srch()}
+async function webAuto(){const q=F&&(F.name||'').trim(),k=qk();if(!q||WRES[k])return;WBUSY=1;WERR=0;srch();try{let a=[];if(/^\d{8,14}$/.test(q)){const p=await offCode(q);if(p)a=[off(p)]}else a=await offSearch(q,15);WRES[k]=a}catch(e){WERR=1;WRES[k]=[]}WBUSY=0;if($('#sr'))srch()}
 const libList=()=>(LQ?rank(LQ,ALL()):ALL().map((x,i)=>[x,i])).map(y=>`<div class="row sp" style="margin:10px 0" ${y[1]>=DB.length?`onclick="libSheet(${y[1]-DB.length})"`:''}><span>${y[1]>=DB.length?'⭐ ':''}${esc(y[0][0])}<br><small>P${y[0][2]} C${y[0][3]} G${y[0][4]}${y[0][11]?' · 1 un = '+y[0][11]+'g':''}</small></span><span style="text-align:right"><b>${Math.round(y[0][1])}</b> kcal/100g${KBO?`<br><small>${y[0][1]>0?Math.round(KB/y[0][1]*100):0} g = ${KB} kcal</small>`:''}</span></div>`).join('');
 // ---- leitura do rótulo (OCR nativo)
-async function ocrLines(u){const P=C().OcrNow;if(!P)throw new Error('Leitura só funciona no app instalado');const r=await P.read({b:u.split(',')[1]});return(r.lines||[]).map(s=>String(s).trim()).filter(Boolean)}
+// (ocrLines: ver scan v2)
 Object.assign(E2,{'Timer':'Timer','Contando':'Running','Pausado':'Paused','Pronto':'Ready','▶ Iniciar':'▶ Start','⏸ Pausar':'⏸ Pause','▶ Continuar':'▶ Resume','■ Zerar':'■ Reset','Tempos salvos':'Saved times','⚙ Editar':'⚙ Edit','Outro tempo':'Other time','Iniciar':'Start','📎 Arquivos (PDF/imagem)':'📎 Files (PDF/image)','⏳ Tempo para gastar kcal':'⏳ Time to burn kcal','⚖️ Quanto posso comer?':'⚖️ How much can I eat?','Com quantas kcal':'With how many kcal','Mostrar mais':'Show more','Parecidos:':'Similar:','buscando na internet…':'searching the internet…','sem internet':'no internet','Nada achou. Tente outro nome, o código de barras, 🌐 Internet ou ✍️ Manual.':'Nothing found. Try another name, the barcode, 🌐 Internet or ✍️ Manual.','Sem contar':'Not counted','Comidas de vez em quando. Não entram na meta.':'Occasional foods. They do not count toward the goal.','Não entra na conta do dia.':'Does not count toward the day.','Não li nada. Foto de perto, com luz e o rótulo reto.':'Read nothing. Take the photo close, with light and the label flat.','Leitura só funciona no app instalado':'Reading only works in the installed app','Monte seu treino: toque em + Novo.':'Build your workout: tap + New.'});
+Object.assign(E2,{"Escanear":"Scan","Foto do código":"Barcode photo","Digitar o código de barras":"Type the barcode","Buscar":"Search","Câmera":"Camera","Galeria":"Gallery","Sem tabela? Foto do produto":"No label? Photo of the product","Comida":"Food","Fotografe a comida ou a embalagem. O app acha o alimento e monta a tabela nutricional.":"Photograph the food or the package. The app finds it and builds the nutrition label.","Lendo o rótulo…":"Reading the label…","Lendo texto…":"Reading text…","Melhorando a imagem…":"Improving the image…","Girando a imagem…":"Rotating the image…","Outra foto":"Another photo","Mais nutrientes":"More nutrients","Analisando a foto…":"Analyzing the photo…","Procurando código, texto e o tipo de comida…":"Looking for code, text and food type…","Foto do alimento":"Food photo","Toque no que parece certo ou digite o nome:":"Tap what looks right or type the name:","Não reconheci. Digite o nome:":"Not recognized. Type the name:","A foto não mede o peso. Ajuste a quantidade.":"The photo cannot weigh the food. Adjust the amount.","Usar este alimento":"Use this food","Produto não encontrado":"Product not found","Sem internet. Tente de novo.":"No internet. Try again.","O produto existe no banco, mas sem tabela nutricional.":"The product exists in the database but has no nutrition table.","Fotografar o rótulo":"Photograph the label","Foto do produto (buscar pelo nome)":"Product photo (search by name)","Escanear de novo":"Scan again","Digitar os valores":"Type the values","Código curto demais. Confira os números.":"Code too short. Check the numbers.","Leitura duvidosa. Confira os números do código.":"Doubtful reading. Check the code numbers.","Buscando produto…":"Looking up product…","O leitor falhou. Use \"Foto do código\" ou digite os números.":"Scanner failed. Use \"Barcode photo\" or type the numbers.","Não achei o código na foto. Chegue perto, com luz e o código reto. Ou digite os números.":"Could not find the code. Get close, with light and the code flat. Or type the numbers.","Lendo o código…":"Reading the code…","Não achei a tabela. Chegue perto, com luz, rótulo reto e sem reflexo. Você também pode usar a galeria.":"Could not find the table. Get close, with light, label flat and no glare. You can also use the gallery.","Campos em amarelo ficaram vazios: confira.":"Yellow fields are empty: check them.","As calorias não batem com os macros. Confira os valores.":"Calories do not match the macros. Check the values.","Macros somam mais de 100 g. Talvez misturou porção e 100 g.":"Macros add up to more than 100 g. Portion and 100 g may be mixed.","Calorias calculadas pelos macros (não achei no rótulo).":"Calories computed from the macros (not found on the label).","Nada achei. Tente outro nome.":"Nothing found. Try another name.","Sem internet e nada local. Tente outro nome.":"No internet and nothing local. Try another name.","🌐 sem internet":"🌐 no internet","Código lido: ":"Code read: ","Procurando código, texto e usando a IA…":"Looking for code, text and using the AI…","IA para reconhecer comida":"AI to recognize food","Endereço da API":"API address","Modelo (precisa aceitar imagem)":"Model (must accept images)","Chave da API":"API key","Testar conexão":"Test connection","Apagar a chave":"Delete the key","Funciona com OpenRouter, OmniRoute ou qualquer serviço compatível com a API da OpenAI. A foto é enviada a esse serviço. A chave fica só neste aparelho e não entra no backup. Crie a chave com limite de gasto.":"Works with OpenRouter, OmniRoute or any OpenAI-compatible service. The photo is sent to that service. The key stays only on this device and is not in the backup. Create the key with a spending limit.","Analisar com IA":"Analyze with AI","Ativar IA":"Enable AI","Ler com IA":"Read with AI","IA salva.":"AI saved.","Chave apagada.":"Key deleted.","Funcionou ✓":"Works ✓","🤖 Analisando…":"🤖 Analyzing…","🤖 Lendo o rótulo…":"🤖 Reading the label…","Lido pela IA. Confira os valores com o rótulo.":"Read by the AI. Check the values against the label.","A IA não reconheceu comida na foto.":"The AI did not recognize food in the photo.","A IA não achou a tabela.":"The AI did not find the table.","Configure a IA primeiro.":"Set up the AI first.","Chave inválida ou sem permissão.":"Invalid key or no permission.","Sem crédito na conta da IA.":"No credit on the AI account.","Limite de uso da IA. Espere um pouco.":"AI rate limit. Wait a moment.","Sem conexão com a IA. Confira o endereço e a internet.":"Cannot reach the AI. Check the address and internet.","A IA respondeu vazio. Tente outro modelo.":"The AI answered empty. Try another model."});
 E2K.length=0;E2K.push(...Object.keys(E2).sort((a,b)=>b.length-a.length));
 render();sched();setInterval(()=>{if(tab=='hoje'&&!$('.sheet'))render()},30000);
