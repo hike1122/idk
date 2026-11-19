@@ -1,3 +1,3 @@
 # idk
 
-disable the play protector in plays story
+disable the play protector in play story
