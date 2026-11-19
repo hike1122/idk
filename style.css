@@ -113,3 +113,5 @@ details.card[open]>summary::after{transform:rotate(-135deg);margin-top:3px}
 .nh{border-top:3px solid var(--t);font-size:11px;color:var(--m)}
 .rbar{position:sticky;top:calc(max(env(safe-area-inset-top),28px) - 12px);z-index:4;background:var(--blur);padding:8px 0;border-bottom:1px solid var(--ln);margin-bottom:6px}
 .rbar button{padding:6px 9px;font-size:13px}.rbar .row{flex-wrap:wrap;justify-content:flex-end}
+button:disabled{opacity:.45}
+.ringbar{position:fixed;top:0;left:0;right:0;z-index:30;display:none;align-items:center;gap:8px;padding:max(env(safe-area-inset-top),10px) 14px 10px;background:var(--r);color:#fff}.ringbar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ringbar button{padding:8px 12px;background:rgba(255,255,255,.22);color:#fff}.ringbar .pri{background:#fff;color:var(--r)}
