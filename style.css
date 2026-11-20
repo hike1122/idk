@@ -115,3 +115,7 @@ details.card[open]>summary::after{transform:rotate(-135deg);margin-top:3px}
 .rbar button{padding:6px 9px;font-size:13px}.rbar .row{flex-wrap:wrap;justify-content:flex-end}
 button:disabled{opacity:.45}
 .ringbar{position:fixed;top:0;left:0;right:0;z-index:30;display:none;align-items:center;gap:8px;padding:max(env(safe-area-inset-top),10px) 14px 10px;background:var(--r);color:#fff}.ringbar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ringbar button{padding:8px 12px;background:rgba(255,255,255,.22);color:#fff}.ringbar .pri{background:#fff;color:var(--r)}
+.sec{-webkit-text-security:disc;font-family:ui-monospace,monospace;font-size:12.5px}
+.qr .wbtn{display:flex;flex-direction:row;align-items:center;gap:14px;padding:18px 16px}.wbtn .wi{font-size:32px;line-height:1}.wbtn .wt{flex:1;min-width:0}.wbtn .wt b{font-size:21px}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px}.wb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 8px;background:var(--bg3);border-radius:16px}.wb span{font-size:26px;line-height:1.1}.wb b{font-weight:650}
+.wbig{flex:1;padding:15px 12px;font-size:16px}
